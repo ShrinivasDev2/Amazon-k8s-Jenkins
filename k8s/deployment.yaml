@@ -1,0 +1,142 @@
+# ============================================================
+# Amazon Application — Kubernetes Deployment
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: amazon-deployment
+  namespace: amazon
+  labels:
+    app: amazon-app
+    version: "1.0"
+    component: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: amazon-app
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: amazon-app
+        version: "1.0"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port:   "8080"
+        prometheus.io/path:   "/"
+    spec:
+      imagePullSecrets:
+        - name: acr-secret                    # CHANGED: was jfrog-secret
+      terminationGracePeriodSeconds: 60
+      initContainers:
+        - name: init-check
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "Init: Pod=$(POD_NAME) Namespace=$(POD_NAMESPACE)"
+              echo "Init complete — starting Amazon app container"
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name    # FIXED: removed hyperlink
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+      containers:
+        - name: amazon-app
+          image: DOCKER_IMAGE_PLACEHOLDER     # Jenkins sed replaces with ChiduACR.azurecr.io/amazon-app:BUILD_NUMBER
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: amazon-config
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name    # FIXED: removed hyperlink
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          resources:
+            requests:
+              cpu:    "100m"
+              memory: "256Mi"
+            limits:
+              cpu:    "500m"
+              memory: "768Mi"
+          startupProbe:
+            httpGet:
+              path:   /
+              port:   8080
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds:       10
+            timeoutSeconds:      5
+            successThreshold:    1
+            failureThreshold:    30
+          livenessProbe:
+            httpGet:
+              path:   /
+              port:   8080
+              scheme: HTTP
+            initialDelaySeconds: 0
+            periodSeconds:       20
+            timeoutSeconds:      5
+            successThreshold:    1
+            failureThreshold:    3
+          readinessProbe:
+            httpGet:
+              path:   /
+              port:   8080
+              scheme: HTTP
+            initialDelaySeconds: 0
+            periodSeconds:       10
+            timeoutSeconds:      5
+            successThreshold:    1
+            failureThreshold:    3
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 10"]
+          volumeMounts:
+            - name: tmp-dir
+              mountPath: /tmp
+            - name: log-dir
+              mountPath: /app/logs
+      volumes:
+        - name: tmp-dir
+          emptyDir: {}
+        - name: log-dir
+          emptyDir: {}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values: [amazon-app]
+                topologyKey: kubernetes.io/hostname
