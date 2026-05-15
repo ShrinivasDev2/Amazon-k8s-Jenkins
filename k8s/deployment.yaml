@@ -1,6 +1,3 @@
-# ============================================================
-# Amazon Application — Kubernetes Deployment
-# ============================================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -27,11 +24,9 @@ spec:
         version: "1.0"
       annotations:
         prometheus.io/scrape: "true"
-        prometheus.io/port:   "8080"
-        prometheus.io/path:   "/"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
     spec:
-      imagePullSecrets:
-        - name: acr-secret                    # CHANGED: was jfrog-secret
       terminationGracePeriodSeconds: 60
       initContainers:
         - name: init-check
@@ -46,14 +41,15 @@ spec:
             - name: POD_NAME
               valueFrom:
                 fieldRef:
-                  fieldPath: metadata.name    # FIXED: removed hyperlink
+                  fieldPath: metadata.name
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
       containers:
         - name: amazon-app
-          image: DOCKER_IMAGE_PLACEHOLDER     # Jenkins sed replaces with ChiduACR.azurecr.io/amazon-app:BUILD_NUMBER
+          image: DOCKER_IMAGE_PLACEHOLDER
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 8080
@@ -65,7 +61,7 @@ spec:
             - name: POD_NAME
               valueFrom:
                 fieldRef:
-                  fieldPath: metadata.name    # FIXED: removed hyperlink
+                  fieldPath: metadata.name
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -80,41 +76,41 @@ spec:
                   fieldPath: spec.nodeName
           resources:
             requests:
-              cpu:    "100m"
+              cpu: "100m"
               memory: "256Mi"
             limits:
-              cpu:    "500m"
+              cpu: "500m"
               memory: "768Mi"
           startupProbe:
             httpGet:
-              path:   /
-              port:   8080
+              path: /
+              port: 8080
               scheme: HTTP
             initialDelaySeconds: 60
-            periodSeconds:       10
-            timeoutSeconds:      5
-            successThreshold:    1
-            failureThreshold:    30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 30
           livenessProbe:
             httpGet:
-              path:   /
-              port:   8080
+              path: /
+              port: 8080
               scheme: HTTP
             initialDelaySeconds: 0
-            periodSeconds:       20
-            timeoutSeconds:      5
-            successThreshold:    1
-            failureThreshold:    3
+            periodSeconds: 20
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
           readinessProbe:
             httpGet:
-              path:   /
-              port:   8080
+              path: /
+              port: 8080
               scheme: HTTP
             initialDelaySeconds: 0
-            periodSeconds:       10
-            timeoutSeconds:      5
-            successThreshold:    1
-            failureThreshold:    3
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
           lifecycle:
             preStop:
               exec:
@@ -138,5 +134,6 @@ spec:
                   matchExpressions:
                     - key: app
                       operator: In
-                      values: [amazon-app]
+                      values:
+                        - amazon-app
                 topologyKey: kubernetes.io/hostname
