@@ -31,7 +31,7 @@ pipeline {
         }
 
         stage('Push Artifact & Image') {
-            agent { label 'azure-vm-agent' }
+            agent { label 'azure-ubuntu-VM' }
             steps {
                 withCredentials([
                     usernamePassword(
@@ -39,7 +39,7 @@ pipeline {
                         usernameVariable: 'JFROG_USER',
                         passwordVariable: 'JFROG_PASS'
                     ),
-                    azureServicePrincipal('azure-sp')
+                    azureServicePrincipal('azure-service-principal')
                 ]) {
                     sh """
                         set -e
@@ -91,10 +91,10 @@ pipeline {
         }
 
         stage('Deploy to AKS') {
-            agent { label 'azure-vm-agent' }
+            agent { label 'azure-ubuntu-VM' }
             steps {
                 withCredentials([
-                    azureServicePrincipal('azure-sp'),
+                    azureServicePrincipal('azure-service-principal'),
                     file(credentialsId: 'aks-config', variable: 'KUBECONFIG')
                 ]) {
                     sh """
@@ -134,7 +134,7 @@ pipeline {
         }
 
         stage('Confirm Deployment') {
-            agent { label 'azure-vm-agent' }
+            agent { label 'azure-ubuntu-VM' }
             steps {
                 withCredentials([file(credentialsId: 'aks-config', variable: 'KUBECONFIG')]) {
                     sh """
