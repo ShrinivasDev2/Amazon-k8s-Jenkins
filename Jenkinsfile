@@ -21,7 +21,7 @@ pipeline {
     stages {
 
         stage('Build Docker Image') {
-            agent { label 'azure-ubuntu-VM' }
+            agent { label 'azure-vm' }
             steps {
                 checkout scm
                 script {
@@ -31,7 +31,7 @@ pipeline {
         }
 
         stage('Push Artifact & Image') {
-            agent { label 'azure-ubuntu-VM' }
+            agent { label 'azure-vm' }
             steps {
                 withCredentials([
                     usernamePassword(
@@ -91,7 +91,7 @@ pipeline {
         }
 
         stage('Deploy to AKS') {
-            agent { label 'azure-ubuntu-VM' }
+            agent { label 'azure-vm' }
             steps {
                 withCredentials([
                     azureServicePrincipal('azure-service-principal'),
@@ -134,7 +134,7 @@ pipeline {
         }
 
         stage('Confirm Deployment') {
-            agent { label 'azure-ubuntu-VM' }
+            agent { label 'azure-vm' }
             steps {
                 withCredentials([file(credentialsId: 'aks-config', variable: 'KUBECONFIG')]) {
                     sh """
