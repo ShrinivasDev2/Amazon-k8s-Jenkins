@@ -21,7 +21,7 @@ pipeline {
     stages {
 
         stage('Build Docker Image') {
-            agent { label 'azure-vm-agent' }
+            agent { label 'azure-ubuntu-VM' }
             steps {
                 checkout scm
                 script {
